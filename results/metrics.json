@@ -1,0 +1,29 @@
+[
+  {
+    "auuc": 0.028017893549634267,
+    "qini_area": 0.0015387937663295585,
+    "treatment_rate": 0.5077,
+    "uplift_at_10pct": 0.006942926584468775,
+    "uplift_at_20pct": 0.013122632163443861,
+    "uplift_at_30pct": 0.019099209568541275,
+    "setting": "balanced"
+  },
+  {
+    "auuc": 0.02790062957931107,
+    "qini_area": 0.0014215297960063742,
+    "treatment_rate": 0.5077,
+    "uplift_at_10pct": 0.005570321057341962,
+    "uplift_at_20pct": 0.013541211433703603,
+    "uplift_at_30pct": 0.01933314504867975,
+    "setting": "treatment_0.5"
+  },
+  {
+    "auuc": 0.02781422951267126,
+    "qini_area": 0.0013351297293665645,
+    "treatment_rate": 0.5077,
+    "uplift_at_10pct": 0.007170700603355089,
+    "uplift_at_20pct": 0.011990123577707668,
+    "uplift_at_30pct": 0.015929257782775742,
+    "setting": "treatment_0.25"
+  }
+]
