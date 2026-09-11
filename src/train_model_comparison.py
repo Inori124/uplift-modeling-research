@@ -4,6 +4,8 @@ import argparse, json
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 
 FEATURES=[f"f{i}" for i in range(12)]
@@ -25,12 +27,12 @@ def main(path,out_path,seed=2027,test_size=.25):
     # T-learner：处理/对照组分别训练
     t_models={}
     for label in [0,1]:
-        m=LogisticRegression(max_iter=300,class_weight='balanced',solver='lbfgs')
+        m=make_pipeline(StandardScaler(), LogisticRegression(max_iter=500, class_weight='balanced', solver='liblinear'))
         sub=tr[t[tr]==label]; m.fit(X[sub],y[sub]); t_models[label]=m
     u_t=t_models[1].predict_proba(X[te])[:,1]-t_models[0].predict_proba(X[te])[:,1]
     # S-learner：同一个模型，把 treatment 作为输入特征
     Xtr_s=np.c_[X[tr],t[tr]]; Xte_1=np.c_[X[te],np.ones(len(te))]; Xte_0=np.c_[X[te],np.zeros(len(te))]
-    s_model=LogisticRegression(max_iter=300,class_weight='balanced',solver='lbfgs')
+    s_model=make_pipeline(StandardScaler(), LogisticRegression(max_iter=500, class_weight='balanced', solver='liblinear'))
     s_model.fit(Xtr_s,y[tr]); u_s=s_model.predict_proba(Xte_1)[:,1]-s_model.predict_proba(Xte_0)[:,1]
     rng=np.random.default_rng(seed); u_random=rng.random(len(te))
     result={'dataset':str(path),'n':len(df),'train_n':len(tr),'test_n':len(te),'feature_columns':FEATURES,'seed':seed,'treatment_rate':float(t.mean()),'conversion_rate':float(y.mean()),'treatment_rate_train':float(t[tr].mean()),'treatment_rate_test':float(t[te].mean()),'models':{'random_baseline':uplift_metrics(u_random,t[te],y[te]),'t_learner_logistic':uplift_metrics(u_t,t[te],y[te]),'s_learner_logistic':uplift_metrics(u_s,t[te],y[te])}}
