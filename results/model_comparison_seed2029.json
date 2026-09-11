@@ -1,0 +1,51 @@
+{
+  "dataset": "data/criteo-dev-1m.csv",
+  "n": 1000000,
+  "train_n": 750000,
+  "test_n": 250000,
+  "feature_columns": [
+    "f0",
+    "f1",
+    "f2",
+    "f3",
+    "f4",
+    "f5",
+    "f6",
+    "f7",
+    "f8",
+    "f9",
+    "f10",
+    "f11"
+  ],
+  "seed": 2029,
+  "treatment_rate": 0.850398,
+  "conversion_rate": 0.002911,
+  "treatment_rate_train": 0.8503973333333333,
+  "treatment_rate_test": 0.8504,
+  "models": {
+    "random_baseline": {
+      "auuc": 0.00042309379015096764,
+      "qini_area": -6.938285500123139e-05,
+      "test_treatment_rate": 0.8504,
+      "uplift_at_10pct": -2.1304853079519878e-05,
+      "uplift_at_20pct": 0.00012870948430684985,
+      "uplift_at_30pct": 0.0001279548850242225
+    },
+    "t_learner_logistic": {
+      "auuc": 0.0004176316055357371,
+      "qini_area": -7.484503961646085e-05,
+      "test_treatment_rate": 0.8504,
+      "uplift_at_10pct": 6.856792148142924e-05,
+      "uplift_at_20pct": 0.00016882901283321846,
+      "uplift_at_30pct": 0.0002015031617709944
+    },
+    "s_learner_logistic": {
+      "auuc": 0.0006160258371775951,
+      "qini_area": 0.00012354919202539367,
+      "test_treatment_rate": 0.8504,
+      "uplift_at_10pct": 0.0002470558051322815,
+      "uplift_at_20pct": 0.00046143746132678605,
+      "uplift_at_30pct": 0.0005361930969257608
+    }
+  }
+}
