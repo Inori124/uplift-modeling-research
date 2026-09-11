@@ -23,7 +23,7 @@ def summarize(path: str, chunksize: int = 200_000):
             "treatment": {"n": n[1], "conversion_rate": conversion[1] / n[1], "visit_rate": visit[1] / n[1], "exposure_rate": exposure[1] / n[1]},
         },
         "naive_conversion_difference": conversion[1] / n[1] - conversion[0] / n[0],
-        "note": "这是未调整的组间差异；由于 treatment 分配概率约为 0.85，正式 uplift 评估仍需独立测试集和 IPW/Qini。",
+        "note": "在随机分组假设下，该差异可作为总体平均处理效应的粗估，但不能回答个体层面的 uplift 排序；正式评估仍需独立测试集和 IPW/Qini。",
     }
     return out
 
