@@ -1,0 +1,19 @@
+{
+  "rows": 13979592,
+  "groups": {
+    "control": {
+      "n": 2096937,
+      "conversion_rate": 0.0019375880152813366,
+      "visit_rate": 0.03820095691954503,
+      "exposure_rate": 0.0
+    },
+    "treatment": {
+      "n": 11882655,
+      "conversion_rate": 0.0030894610674129645,
+      "visit_rate": 0.048543360048743316,
+      "exposure_rate": 0.036036727482199896
+    }
+  },
+  "naive_conversion_difference": 0.0011518730521316279,
+  "note": "这是未调整的组间差异；由于 treatment 分配概率约为 0.85，正式 uplift 评估仍需独立测试集和 IPW/Qini。"
+}

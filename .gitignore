@@ -1,6 +1,6 @@
 # local raw data
- data/*.csv
- data/*.csv.gz
+data/*.csv
+data/*.csv.gz
 *.part
 .DS_Store
 __pycache__/
