@@ -1,0 +1,42 @@
+{
+  "dataset": "data/criteo-dev-1m.csv",
+  "n": 1000000,
+  "train_n": 750000,
+  "test_n": 250000,
+  "feature_columns": [
+    "f0",
+    "f1",
+    "f2",
+    "f3",
+    "f4",
+    "f5",
+    "f6",
+    "f7",
+    "f8",
+    "f9",
+    "f10",
+    "f11"
+  ],
+  "model": "T-learner logistic regression (class_weight=balanced)",
+  "seed": 2029,
+  "treatment_rate": 0.850398,
+  "conversion_rate": 0.002911,
+  "treatment_rate_train": 0.8503973333333333,
+  "treatment_rate_test": 0.8504,
+  "tlearner": {
+    "auuc": 0.0004201805947248453,
+    "qini_area": -7.229605042735335e-05,
+    "test_treatment_rate": 0.8504,
+    "uplift_at_10pct": 0.00010471322711929199,
+    "uplift_at_20pct": 0.00020645836372691555,
+    "uplift_at_30pct": 0.00019357986930340442
+  },
+  "random_baseline": {
+    "auuc": 0.00042309379015096764,
+    "qini_area": -6.938285500123139e-05,
+    "test_treatment_rate": 0.8504,
+    "uplift_at_10pct": -2.1304853079519878e-05,
+    "uplift_at_20pct": 0.00012870948430684985,
+    "uplift_at_30pct": 0.0001279548850242225
+  }
+}
