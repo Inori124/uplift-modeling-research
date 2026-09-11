@@ -51,3 +51,15 @@ python3 src/run_experiment.py --out results/metrics.json
 ## 放进简历（完成实验后）
 
 > 基于公开随机实验数据构建用户增量响应建模流程，使用处理前行为特征对比 T-learner、X-learner 与 uplift tree，并通过 Qini/AUUC 评估人群排序效果；固定独立测试集，改变训练集处理组比例开展有限样本稳健性实验，进一步完成预算约束下 Top-K 触达策略模拟。
+
+## 当前阶段结果（开发集）
+
+在固定的 100 万行开发集上，使用 5 个随机种子比较随机排序、T-learner 和 S-learner。测试集处理组比例约为 0.8504，结果为离线估计，不代表线上 ROI。
+
+| 方法 | AUUC 均值 | AUUC 标准差 | Qini area 均值 | Top20 uplift 均值 |
+| --- | ---: | ---: | ---: | ---: |
+| Random baseline | 0.000524 | 0.000094 | -0.000074 | 0.000184 |
+| T-learner logistic | 0.000485 | 0.000045 | -0.000113 | 0.000272 |
+| S-learner logistic | 0.000564 | 0.000088 | -0.000033 | 0.000413 |
+
+阶段性观察：S-learner 在 Top-K 人群的平均估计增量转化率较高，且 Top20 uplift 高于 T-learner；但三种方法的 Qini area 均值都接近 0，S-learner 的跨切分波动较大，当前证据不足以宣称其整体排序稳定或优于其他方法。后续需要加入 X-learner、重复抽样置信区间和 uplift 曲线，并在完整研究报告中讨论稀疏转化与 treatment 分配概率带来的估计不确定性。
