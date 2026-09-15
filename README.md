@@ -24,7 +24,7 @@
 
 - 任务：估计个体处理效应（ITE），按预测 uplift 排序；
 - 基线：T-learner（处理组／对照组分别训练逻辑回归）；
-- 评估：独立测试集上的 IPW uplift 曲线、AUUC、Qini area、Top 10/20/30% uplift；
+- 评估：独立测试集上的 IPW uplift 曲线、AUUC、Qini area、Top 10/20/30% policy gain（以整个测试集为分母的累计增量价值）；
 - 稳健性：只改变训练集处理组比例，测试集保持不变；0.5 和 0.25 表示处理组相对对照组的抽样比例；
 - 防泄漏：只使用处理前特征，不使用 exposure、visit、conversion 等处理后变量；按用户一次性切分训练／测试。
 
@@ -56,12 +56,12 @@ python3 src/run_experiment.py --out results/metrics.json
 
 在固定的 100 万行开发集上，使用 5 个随机种子比较随机排序、T-learner 和 S-learner。测试集处理组比例约为 0.8504，结果为离线估计，不代表线上 ROI。
 
-| 方法 | AUUC 均值 | AUUC 标准差 | Qini area 均值 | Top20 uplift 均值 |
+| 方法 | AUUC 均值 | AUUC 标准差 | Qini area 均值 | Top20 policy gain 均值 |
 | --- | ---: | ---: | ---: | ---: |
 | Random baseline | 0.000524 | 0.000094 | -0.000074 | 0.000184 |
 | T-learner logistic | 0.000485 | 0.000045 | -0.000113 | 0.000272 |
 | S-learner logistic | 0.000564 | 0.000088 | -0.000033 | 0.000413 |
-| X-learner HGB | 待汇总 | 待汇总 | 待汇总 | 待汇总 |
+| X-learner HGB | 0.001107 | 0.000140 | 0.000510 | 0.001108 |
 
 阶段性观察：S-learner 在 Top-K 人群的平均估计增量转化率较高，且 Top20 uplift 高于 T-learner；但三种方法的 Qini area 均值都接近 0，S-learner 的跨切分波动较大，当前证据不足以宣称其整体排序稳定或优于其他方法。后续需要补充处理组比例稳健性、重复抽样置信区间和 uplift 曲线，并在完整研究报告中讨论稀疏转化、结果模型概率校准与 treatment 分配概率带来的估计不确定性。
 
@@ -69,4 +69,4 @@ python3 src/run_experiment.py --out results/metrics.json
 
 X-learner 使用 T-learner 的结果模型构造伪处理效应，再分别拟合处理组与对照组的效应模型；本实现使用 `HistGradientBoostingRegressor`，并按训练集 treatment 比例进行组合。当前结果属于开发集离线估计，结果模型使用类别加权，正式报告前应补充未加权或概率校准的敏感性分析。
 
-在 5 个随机种子下，X-learner 的 Qini area 均为正，均值约为 `0.000510`，样本标准差约为 `0.000068`；Top20 uplift 均值约为 `0.001108`，样本标准差约为 `0.000166`。该结果显示 X-learner 在当前处理组约 85% 的不平衡开发集上有较强排序信号，但仍需要处理组抽样稳健性、校准敏感性和独立最终测试集验证。
+在 5 个随机种子下，X-learner 的 Qini area 均为正，均值约为 `0.000510`，样本标准差约为 `0.000068`；Top20 policy gain 均值约为 `0.001108`（即前 20% 策略对整个测试集的每用户累计增量价值；若要表达被选中人群内部的平均增量，需要再除以 0.2），样本标准差约为 `0.000166`。该结果显示 X-learner 在当前处理组约 85% 的不平衡开发集上有较强排序信号，但当前 X-learner 使用 HGB 效应模型，而 T/S-learner 使用线性逻辑回归，结果同时反映了学习器差异，不能单独归因于 learner 结构；此外伪效应仍为同一训练集内预测，尚未使用 cross-fitting。后续需要处理组抽样稳健性、校准敏感性、同一基学习器对比和独立最终测试集验证。
