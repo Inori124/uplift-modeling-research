@@ -70,3 +70,16 @@ python3 src/run_experiment.py --out results/metrics.json
 X-learner 使用 T-learner 的结果模型构造伪处理效应，再分别拟合处理组与对照组的效应模型；本实现使用 `HistGradientBoostingRegressor`，并按训练集 treatment 比例进行组合。当前结果属于开发集离线估计，结果模型使用类别加权，正式报告前应补充未加权或概率校准的敏感性分析。
 
 在 5 个随机种子下，X-learner 的 Qini area 均为正，均值约为 `0.000510`，样本标准差约为 `0.000068`；Top20 policy gain 均值约为 `0.001108`（即前 20% 策略对整个测试集的每用户累计增量价值；若要表达被选中人群内部的平均增量，需要再除以 0.2），样本标准差约为 `0.000166`。该结果显示 X-learner 在当前处理组约 85% 的不平衡开发集上有较强排序信号，但当前 X-learner 使用 HGB 效应模型，而 T/S-learner 使用线性逻辑回归，结果同时反映了学习器差异，不能单独归因于 learner 结构；此外伪效应仍为同一训练集内预测，尚未使用 cross-fitting。后续需要处理组抽样稳健性、校准敏感性、同一基学习器对比和独立最终测试集验证。
+
+## Cross-fitting 结果（开发集）
+
+为减少结果模型在同一训练样本内回预测造成的伪处理效应偏差，X-learner 使用 3-fold StratifiedKFold 生成 out-of-fold 的 `mu0` 和 `mu1`，再拟合两组效应模型。5 个随机种子的结果如下：
+
+| 方法 | AUUC 均值 | Qini area 均值 | Top20 policy gain 均值 |
+| --- | ---: | ---: | ---: |
+| Random baseline | 0.000524 | -0.000074 | 0.000184 |
+| T-learner logistic | 0.000485 | -0.000113 | 0.000272 |
+| S-learner logistic | 0.000564 | -0.000033 | 0.000413 |
+| X-learner HGB + cross-fitting | 0.001112 | 0.000515 | 0.001111 |
+
+X-learner 的 Qini area 在 5 次切分中保持为正，说明在当前开发集和实现下具有较强的离线排序信号。但 X-learner 使用 HGB 效应模型，T/S-learner 使用逻辑回归，且结果模型仍使用类别加权；因此该结果不能单独解释为 X-learner 结构带来的优势。后续需要统一基础学习器、比较类别加权与概率校准，并在固定独立测试集上完成处理组比例稳健性实验。
