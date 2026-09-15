@@ -1,0 +1,61 @@
+{
+  "dataset": "data/criteo-dev-1m.csv",
+  "n": 1000000,
+  "train_n": 168303,
+  "test_n": 250000,
+  "feature_columns": [
+    "f0",
+    "f1",
+    "f2",
+    "f3",
+    "f4",
+    "f5",
+    "f6",
+    "f7",
+    "f8",
+    "f9",
+    "f10",
+    "f11"
+  ],
+  "seed": 2027,
+  "train_treatment_ratio_treated_over_control": 0.5,
+  "train_n_after_sampling": 168303,
+  "treatment_rate": 0.850398,
+  "conversion_rate": 0.002911,
+  "treatment_rate_train": 0.3333333333333333,
+  "treatment_rate_test": 0.8504,
+  "models": {
+    "random_baseline": {
+      "auuc": 0.0006293802046976303,
+      "qini_area": -3.9609789315884646e-05,
+      "test_treatment_rate": 0.8504,
+      "uplift_at_10pct": 0.00014531066852465754,
+      "uplift_at_20pct": 0.0002277380634970146,
+      "uplift_at_30pct": 0.0003369034263838094
+    },
+    "t_learner_logistic": {
+      "auuc": 0.0005868952212233535,
+      "qini_area": -8.209477279016181e-05,
+      "test_treatment_rate": 0.8504,
+      "uplift_at_10pct": 0.00021438165619450548,
+      "uplift_at_20pct": 0.00028146553242010036,
+      "uplift_at_30pct": 0.00023714540122043824
+    },
+    "s_learner_logistic": {
+      "auuc": 0.0004465447772674429,
+      "qini_area": -0.00022244521674607523,
+      "test_treatment_rate": 0.8504,
+      "uplift_at_10pct": 0.00026760605892917375,
+      "uplift_at_20pct": 0.0003797395123276359,
+      "uplift_at_30pct": 0.0003745327772775047
+    },
+    "x_learner_hgb": {
+      "auuc": 0.00012631292744276327,
+      "qini_area": -0.0005426770665707505,
+      "test_treatment_rate": 0.8504,
+      "uplift_at_10pct": 3.911339614953138e-05,
+      "uplift_at_20pct": 4.381706501124352e-05,
+      "uplift_at_30pct": 5.7928071596379905e-05
+    }
+  }
+}

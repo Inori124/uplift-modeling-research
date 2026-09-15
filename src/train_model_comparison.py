@@ -25,6 +25,14 @@ def main(path,out_path,seed=2027,test_size=.25):
     df=pd.read_csv(path,usecols=FEATURES+['treatment','conversion'])
     X=df[FEATURES].to_numpy(dtype='float32'); t=df.treatment.to_numpy(dtype='int8'); y=df.conversion.to_numpy(dtype='int8')
     idx=np.arange(len(df)); tr,te=train_test_split(idx,test_size=test_size,random_state=seed,stratify=t)
+    # 稳健性实验：只改变训练集 treatment/control 比例，测试集保持原始分布
+    treatment_ratio = None
+    if getattr(main, '_treatment_ratio', None) is not None:
+        treatment_ratio=float(main._treatment_ratio)
+        rng_sub=np.random.default_rng(seed+9000)
+        tr_t=tr[t[tr]==1]; tr_c=tr[t[tr]==0]
+        keep_n=min(len(tr_t), max(1,int(len(tr_c)*treatment_ratio)))
+        tr=np.r_[tr_c, rng_sub.choice(tr_t,size=keep_n,replace=False)]
     # T-learner：处理/对照组分别训练
     t_models={}
     for label in [0,1]:
@@ -57,9 +65,9 @@ def main(path,out_path,seed=2027,test_size=.25):
     tau1_model.fit(Xtr[mask1],d1); tau0_model.fit(Xtr[mask0],d0)
     u_x=(1-p_train)*tau1_model.predict(X[te])+p_train*tau0_model.predict(X[te])
     rng=np.random.default_rng(seed); u_random=rng.random(len(te))
-    result={'dataset':str(path),'n':len(df),'train_n':len(tr),'test_n':len(te),'feature_columns':FEATURES,'seed':seed,'treatment_rate':float(t.mean()),'conversion_rate':float(y.mean()),'treatment_rate_train':float(t[tr].mean()),'treatment_rate_test':float(t[te].mean()),'models':{'random_baseline':uplift_metrics(u_random,t[te],y[te]),'t_learner_logistic':uplift_metrics(u_t,t[te],y[te]),'s_learner_logistic':uplift_metrics(u_s,t[te],y[te]),'x_learner_hgb':uplift_metrics(u_x,t[te],y[te])}}
+    result={'dataset':str(path),'n':len(df),'train_n':len(tr),'test_n':len(te),'feature_columns':FEATURES,'seed':seed,'train_treatment_ratio_treated_over_control':treatment_ratio,'train_n_after_sampling':len(tr),'treatment_rate':float(t.mean()),'conversion_rate':float(y.mean()),'treatment_rate_train':float(t[tr].mean()),'treatment_rate_test':float(t[te].mean()),'models':{'random_baseline':uplift_metrics(u_random,t[te],y[te]),'t_learner_logistic':uplift_metrics(u_t,t[te],y[te]),'s_learner_logistic':uplift_metrics(u_s,t[te],y[te]),'x_learner_hgb':uplift_metrics(u_x,t[te],y[te])}}
     print(json.dumps(result,ensure_ascii=False,indent=2))
     out=Path(out_path); out.parent.mkdir(parents=True,exist_ok=True); out.write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
 
 if __name__=='__main__':
-    ap=argparse.ArgumentParser(); ap.add_argument('path'); ap.add_argument('--out',default='results/model_comparison_seed2027.json'); ap.add_argument('--seed',type=int,default=2027); args=ap.parse_args(); main(args.path,args.out,args.seed)
+    ap=argparse.ArgumentParser(); ap.add_argument('path'); ap.add_argument('--out',default='results/model_comparison_seed2027.json'); ap.add_argument('--seed',type=int,default=2027); ap.add_argument('--treatment-ratio',type=float,default=None,help='训练集中 treated/control 抽样比例；默认不抽样'); args=ap.parse_args(); main._treatment_ratio=args.treatment_ratio; main(args.path,args.out,args.seed)
