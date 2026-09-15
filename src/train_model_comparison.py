@@ -6,6 +6,7 @@ import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.model_selection import train_test_split
 
 FEATURES=[f"f{i}" for i in range(12)]
@@ -34,8 +35,18 @@ def main(path,out_path,seed=2027,test_size=.25):
     Xtr_s=np.c_[X[tr],t[tr]]; Xte_1=np.c_[X[te],np.ones(len(te))]; Xte_0=np.c_[X[te],np.zeros(len(te))]
     s_model=make_pipeline(StandardScaler(), LogisticRegression(max_iter=500, class_weight='balanced', solver='liblinear'))
     s_model.fit(Xtr_s,y[tr]); u_s=s_model.predict_proba(Xte_1)[:,1]-s_model.predict_proba(Xte_0)[:,1]
+    # X-learner：先用结果模型构造伪处理效应，再分别拟合两组效应模型
+    p_train=float(t[tr].mean())
+    mu0_t=t_models[0].predict_proba(X[tr])[:,1]; mu1_t=t_models[1].predict_proba(X[tr])[:,1]
+    treated=tr[t[tr]==1]; control=tr[t[tr]==0]
+    d1=y[treated]-mu0_t[t[tr]==1]
+    d0=mu1_t[t[tr]==0]-y[control]
+    tau1_model=HistGradientBoostingRegressor(max_iter=120,max_leaf_nodes=31,learning_rate=0.08,l2_regularization=1.0,random_state=seed)
+    tau0_model=HistGradientBoostingRegressor(max_iter=120,max_leaf_nodes=31,learning_rate=0.08,l2_regularization=1.0,random_state=seed+1)
+    tau1_model.fit(X[treated],d1); tau0_model.fit(X[control],d0)
+    u_x=(1-p_train)*tau1_model.predict(X[te])+p_train*tau0_model.predict(X[te])
     rng=np.random.default_rng(seed); u_random=rng.random(len(te))
-    result={'dataset':str(path),'n':len(df),'train_n':len(tr),'test_n':len(te),'feature_columns':FEATURES,'seed':seed,'treatment_rate':float(t.mean()),'conversion_rate':float(y.mean()),'treatment_rate_train':float(t[tr].mean()),'treatment_rate_test':float(t[te].mean()),'models':{'random_baseline':uplift_metrics(u_random,t[te],y[te]),'t_learner_logistic':uplift_metrics(u_t,t[te],y[te]),'s_learner_logistic':uplift_metrics(u_s,t[te],y[te])}}
+    result={'dataset':str(path),'n':len(df),'train_n':len(tr),'test_n':len(te),'feature_columns':FEATURES,'seed':seed,'treatment_rate':float(t.mean()),'conversion_rate':float(y.mean()),'treatment_rate_train':float(t[tr].mean()),'treatment_rate_test':float(t[te].mean()),'models':{'random_baseline':uplift_metrics(u_random,t[te],y[te]),'t_learner_logistic':uplift_metrics(u_t,t[te],y[te]),'s_learner_logistic':uplift_metrics(u_s,t[te],y[te]),'x_learner_hgb':uplift_metrics(u_x,t[te],y[te])}}
     print(json.dumps(result,ensure_ascii=False,indent=2))
     out=Path(out_path); out.parent.mkdir(parents=True,exist_ok=True); out.write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
 

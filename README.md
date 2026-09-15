@@ -61,5 +61,12 @@ python3 src/run_experiment.py --out results/metrics.json
 | Random baseline | 0.000524 | 0.000094 | -0.000074 | 0.000184 |
 | T-learner logistic | 0.000485 | 0.000045 | -0.000113 | 0.000272 |
 | S-learner logistic | 0.000564 | 0.000088 | -0.000033 | 0.000413 |
+| X-learner HGB | 待汇总 | 待汇总 | 待汇总 | 待汇总 |
 
-阶段性观察：S-learner 在 Top-K 人群的平均估计增量转化率较高，且 Top20 uplift 高于 T-learner；但三种方法的 Qini area 均值都接近 0，S-learner 的跨切分波动较大，当前证据不足以宣称其整体排序稳定或优于其他方法。后续需要加入 X-learner、重复抽样置信区间和 uplift 曲线，并在完整研究报告中讨论稀疏转化与 treatment 分配概率带来的估计不确定性。
+阶段性观察：S-learner 在 Top-K 人群的平均估计增量转化率较高，且 Top20 uplift 高于 T-learner；但三种方法的 Qini area 均值都接近 0，S-learner 的跨切分波动较大，当前证据不足以宣称其整体排序稳定或优于其他方法。后续需要补充处理组比例稳健性、重复抽样置信区间和 uplift 曲线，并在完整研究报告中讨论稀疏转化、结果模型概率校准与 treatment 分配概率带来的估计不确定性。
+
+## X-learner 阶段结果（开发集）
+
+X-learner 使用 T-learner 的结果模型构造伪处理效应，再分别拟合处理组与对照组的效应模型；本实现使用 `HistGradientBoostingRegressor`，并按训练集 treatment 比例进行组合。当前结果属于开发集离线估计，结果模型使用类别加权，正式报告前应补充未加权或概率校准的敏感性分析。
+
+在 5 个随机种子下，X-learner 的 Qini area 均为正，均值约为 `0.000510`，样本标准差约为 `0.000068`；Top20 uplift 均值约为 `0.001108`，样本标准差约为 `0.000166`。该结果显示 X-learner 在当前处理组约 85% 的不平衡开发集上有较强排序信号，但仍需要处理组抽样稳健性、校准敏感性和独立最终测试集验证。

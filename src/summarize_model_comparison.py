@@ -4,7 +4,7 @@ import argparse, json
 import numpy as np
 
 METRICS=['auuc','qini_area','uplift_at_10pct','uplift_at_20pct','uplift_at_30pct']
-MODELS=['random_baseline','t_learner_logistic','s_learner_logistic']
+MODELS=['random_baseline','t_learner_logistic','s_learner_logistic','x_learner_hgb']
 
 def main(pattern='results/model_comparison_seed*.json', out_path='results/model_comparison_summary.json'):
  files=sorted(Path('.').glob(pattern)); runs=[]
