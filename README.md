@@ -63,6 +63,14 @@ v2 主实验固定 `split_seed=2027`，将 100 万行开发集划分为 75% trai
 
 该实验只说明当前固定样本量与训练构成设定下的离线变化，不是线上 treatment policy 的因果效应。
 
+## 一键复现实验
+
+```bash
+PYTHONPATH=src python3 src/run_study_v2.py --suite all --workers 2 --bootstrap 200
+```
+
+该命令需要本地准备开发集和原始数据；运行时间取决于机器。
+
 ## 结果、报告与测试
 
 - [研究报告](reports/research_report.md)
@@ -86,3 +94,16 @@ Bootstrap 区间是固定已训练模型分数、按 treatment 分层重抽样�
 3. 检查官方 treatment assignment probability，并以设计概率替代 plug-in；
 4. 记录模型校准、置信区间和完整数据版本；
 5. 完成后再把真实结果写入简历，表述为“基于公开随机实验数据的个人研究项目”。
+
+## 最终 holdout（一次性评估）
+
+在模型配置和研究问题冻结后，从原始数据中另取 300,000 行，与 1M 开发集按行号不重叠。使用完整开发集训练同一 v2.1 配置，只在该 holdout 上评估一次；holdout 没有参与模型选择。结果文件为 [`results/final_holdout.json`](results/final_holdout.json)，生成脚本为 [`src/run_final_holdout.py`](src/run_final_holdout.py)。
+
+| 方法 | Holdout Qini area | Top20 policy gain | Qini 95% 条件 bootstrap CI |
+| --- | ---: | ---: | ---: |
+| Random draw | 0.000031 | 0.000221 | [-0.000111, 0.000153] |
+| T-learner HGB | 0.000285 | 0.000732 | [0.000067, 0.000501] |
+| S-learner HGB | 0.000419 | 0.000887 | [0.000199, 0.000627] |
+| X-learner HGB + cross-fitting | 0.000375 | 0.000838 | [0.000146, 0.000560] |
+
+Holdout 结果与开发集方向一致：在冻结的统一 HGB 配置下，S-learner 的 Qini area 最高，X-learner 次之。该结论仍是公开随机实验数据上的离线结果，不代表线上 ROI 或业务收益。

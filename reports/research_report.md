@@ -43,3 +43,7 @@ z_i = T_i Y_i / p - (1-T_i)Y_i/(1-p)
 保留未参与模型选择的最终 holdout，完成一次终局评估；统一记录数据版本和处理分配概率；补充同一基础学习器下的更多模型、bootstrap 方案和数据规模实验；在研究代码之外补一份结果表和图的自动化生成脚本。完成后可在简历中写为：
 
 > 基于 Criteo 随机实验数据构建用户增量响应建模流程，统一比较 T/S/X-learner，并通过 IPW Qini、AUUC、Top-K policy gain 和固定训练量 treatment fraction 实验分析模型排序效果与稳健性。
+
+## 8. 最终 holdout
+
+模型配置冻结后，从原始全量数据中抽取与 1M 开发集按行号不重叠的 300,000 行 holdout。使用完整开发集训练 v2.1 配置，holdout 仅评估一次。Holdout Qini area 为：T-learner `0.000285`（95% 条件 bootstrap CI `[0.000067, 0.000501]`）、S-learner `0.000419`（`[0.000199, 0.000627]`）、X-learner + cross-fitting `0.000375`（`[0.000146, 0.000560]`）。S-learner 在该一次性 holdout 上仍为最高，但该比较只反映当前冻结配置与公开数据分布，不能外推线上收益。
