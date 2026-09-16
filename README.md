@@ -6,7 +6,7 @@
 
 互联网公司会通过广告、Push、优惠券或站内推荐触达用户，希望用户完成访问、注册或购买。传统转化模型回答“哪些用户最可能转化”，增长策略更关心“哪些用户是因为被触达后才增加转化”。本来就会购买的用户不一定值得消耗触达成本；真正有价值的是接受处理后才增加响应的人群。
 
-本项目研究如何利用随机 treatment/control 实验数据识别增量响应人群，并在有限触达预算下对用户进行排序。对用户特征 `X`、处理分组 `T` 和转化结果 `Y`，目标是估计个体处理效应：
+本项目研究如何利用随机 treatment/control 实验数据识别增量响应人群，并在有限触达预算下对用户进行排序。对用户特征 `X`、处理分组 `T` 和转化结果 `Y`，目标是估计条件平均处理效应（CATE）：
 
 ```text
 τ(x) = P(Y=1 | T=1, X=x) - P(Y=1 | T=0, X=x)
@@ -48,7 +48,7 @@ v2 主实验固定 `split_seed=2027`，将 100 万行开发集划分为 75% trai
 | S-learner HGB | 0.000518 ± 0.000087 | 0.001205 ± 0.000118 |
 | X-learner HGB + cross-fitting | 0.000427 ± 0.000070 | 0.001060 ± 0.000066 |
 
-在当前固定开发集上，S-learner 的平均 Qini area 和 Top20 policy gain 最高；X-learner 不是本统一 HGB 设定下的平均最优方法。该结论只适用于当前开发集验证，不能替代未参与模型选择的最终 holdout。
+在当前固定开发集上，S-learner 的平均 Qini area 和 Top20 policy gain 最高；X-learner 不是本统一 HGB 设定下的平均最优方法。该结论只适用于当前开发集验证；最终 holdout 结果见下文。
 
 ## 固定训练量稳健性
 
@@ -78,6 +78,11 @@ PYTHONPATH=src python3 src/run_study_v2.py --suite all --workers 2 --bootstrap 2
 - [严格 tie-safe 指标与 paired bootstrap](src/evaluation_v2.py)
 - [v2 Qini 曲线](reports/figures/v2_qini_curves_seed2027.png)
 - [处理组构成稳健性图](reports/figures/v2_fixed_size_treatment_robustness.png)
+- [论文数据概览图](reports/figures/paper_data_overview.png)
+- [论文开发集 Qini 曲线](reports/figures/paper_qini_validation.png)
+- [论文 holdout Qini 曲线](reports/figures/paper_qini_holdout.png)
+- [论文 holdout 区间图](reports/figures/paper_holdout_qini_ci.png)
+- [论文 treatment fraction 图](reports/figures/paper_treatment_fraction.png)
 - [类别加权敏感性图（legacy）](reports/figures/class_weight_sensitivity.png)
 
 ```bash
@@ -89,11 +94,10 @@ Bootstrap 区间是固定已训练模型分数、按 treatment 分层重抽样�
 
 ## 后续工作
 
-1. 预留未参与调参的最终 holdout，只做一次终局评估；
-2. 在统一学习器下补充更多数据规模和 treatment fraction 实验；
-3. 检查官方 treatment assignment probability，并以设计概率替代 plug-in；
-4. 记录模型校准、置信区间和完整数据版本；
-5. 完成后再把真实结果写入简历，表述为“基于公开随机实验数据的个人研究项目”。
+1. 补充跨时间或外部数据验证；
+2. 检查官方 treatment assignment probability，并以设计概率替代 plug-in；
+3. 增加 bootstrap 重复次数，比较概率校准方法；
+4. 完成后再把真实结果写入简历，表述为“基于公开随机实验数据的个人研究项目”。
 
 ## 最终 holdout（一次性评估）
 
