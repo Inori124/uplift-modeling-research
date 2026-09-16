@@ -3,23 +3,33 @@
   "runs": [
     {
       "seed": 2027,
-      "file": "results/v2_main_seed2027.json"
+      "file": "results/v2_main_seed2027.json",
+      "train_n": 750000,
+      "treated_fraction": 0.8503973333333333
     },
     {
       "seed": 2028,
-      "file": "results/v2_main_seed2028.json"
+      "file": "results/v2_main_seed2028.json",
+      "train_n": 750000,
+      "treated_fraction": 0.8503973333333333
     },
     {
       "seed": 2029,
-      "file": "results/v2_main_seed2029.json"
+      "file": "results/v2_main_seed2029.json",
+      "train_n": 750000,
+      "treated_fraction": 0.8503973333333333
     },
     {
       "seed": 2030,
-      "file": "results/v2_main_seed2030.json"
+      "file": "results/v2_main_seed2030.json",
+      "train_n": 750000,
+      "treated_fraction": 0.8503973333333333
     },
     {
       "seed": 2031,
-      "file": "results/v2_main_seed2031.json"
+      "file": "results/v2_main_seed2031.json",
+      "train_n": 750000,
+      "treated_fraction": 0.8503973333333333
     }
   ],
   "summary": {

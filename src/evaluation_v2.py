@@ -84,12 +84,15 @@ def paired_bootstrap(scores_by_model, t, y, n_bootstrap=200, seed=2027, p=None):
     if not scores_by_model or int(n_bootstrap) != n_bootstrap or n_bootstrap < 2:
         raise ValueError('models and at least 2 bootstrap replicates required')
     prepared = {}
+    z_reference = None
     for name, scores in scores_by_model.items():
         if name == 'random_expectation':
             raise ValueError('random_expectation is reserved')
         s, t, y, propensity = _validate(scores, t, y, p)
         z = t*y/propensity - (1-t)*y/(1-propensity)
         prepared[name] = _prepare(s, z)
+        if z_reference is None:
+            z_reference = z
     metrics = ('qini_area', 'top20_policy_gain', 'top20_gain_over_random')
     values = {name: {m: [] for m in metrics}
               for name in list(prepared) + ['random_expectation']}
@@ -102,8 +105,10 @@ def paired_bootstrap(scores_by_model, t, y, n_bootstrap=200, seed=2027, p=None):
             result = _calculate(prep, weights)
             for metric in metrics:
                 values[name][metric].append(result['metrics'][metric])
-        for metric in metrics:
-            values['random_expectation'][metric].append(result['random_expectation'][metric])
+        bootstrap_ate = float((weights * z_reference).sum() / len(t))
+        values['random_expectation']['qini_area'].append(0.0)
+        values['random_expectation']['top20_policy_gain'].append(0.2 * bootstrap_ate)
+        values['random_expectation']['top20_gain_over_random'].append(0.0)
     def interval(v):
         return np.quantile(v, [.025, .975]).tolist()
     pairs = {}

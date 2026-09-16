@@ -1,29 +1,45 @@
-# 用户增量响应建模研究（阶段性报告）
+# 用户增量响应建模研究报告（v2.1）
 
-## 摘要
+## 1. 研究问题
 
-本研究使用 Criteo 公开随机实验数据，研究如何根据处理前用户特征识别触达带来的个体增量响应，并比较 T-learner、S-learner 与 X-learner。主实验在固定的 100 万行开发集上划分 75% train pool 与 25% validation，使用 5 个模型随机种子。主结果采用未加权 HistGradientBoostingClassifier 估计结果模型，X-learner 使用 3-fold training-only cross-fitting，所有模型的验证指标使用相同的 IPW 评估。
+转化概率高的用户未必是触达后才转化。本文研究如何从随机 treatment/control 实验中估计用户的增量响应，并比较 T-learner、S-learner 和 X-learner 在稀疏转化与 treatment 不平衡条件下的离线排序效果。
 
-## 数据与变量
+## 2. 数据与变量
 
-数据包含 13,979,592 行和 12 个匿名处理前特征 `f0`–`f11`。`treatment` 约为 0.85，`conversion` 约为 0.0029。`visit` 和 `exposure` 未作为模型特征。完整原始数据不提交仓库；本研究开发集由固定 seed=2027 的均匀抽样得到。
+使用 Criteo uplift modeling 公共数据。全量数据有 13,979,592 行，12 个匿名处理前特征 `f0`–`f11`；`treatment` 比例约 0.85，`conversion` 比例约 0.0029。建模不使用 `visit`、`exposure` 或 `conversion` 以外的处理后信息。当前开发集为固定 seed=2027 的 1,000,000 行均匀抽样。
 
-## 方法
+## 3. 实验设计
 
-T-learner 在 treatment/control 两组分别训练结果模型；S-learner 将 treatment 作为结果模型特征；X-learner 先以对侧结果模型构造伪处理效应，再分别训练处理效应模型，并按训练集 `p_train=mean(treatment)` 加权组合。X-learner 的 cross-fitting 用于减少结果模型过拟合造成的伪效应偏差，不表示解决所有数据泄漏。
+固定 `split_seed=2027`，75% 作为 train pool，25% 作为 validation。主实验使用模型 seed 2027–2031，所有方法使用相同的未加权 `HistGradientBoostingClassifier` 结果模型和 `HistGradientBoostingRegressor` 效应模型。X-learner 的 nuisance outcome 使用 3-fold training-only cross-fitting，以减少结果模型过拟合造成的伪效应偏差。评估集在模型和 seed 之间完全相同。
 
-## 评估
+另设固定总训练量 120,000 的构成实验，treated fraction 为 0.85、0.50、0.33、0.20，每种 5 个 seed；抽样只依赖 treatment，不依赖结果变量。它检验的是训练构成和有限样本共同变化下的组合稳健性。
 
-按预测 uplift 从高到低排序，使用测试集处理概率 plug-in `p=mean(treatment)` 计算 IPW 增量贡献。报告 AUUC、Qini area 和 Top-K policy gain。Top-K policy gain 的分母是整个验证集；若要表示被选中人群内部平均增量，需要除以相应选择比例。随机基线的理论 Qini area 为 0。
+## 4. 评估指标
 
-## 主结果
+按预测 uplift 降序排列，使用验证集 `p=mean(treatment)` 作为 IPW plug-in 处理概率。对每名用户计算：
 
-主结果见 `results/v2_summary.json`。结果仅属于固定开发集的验证估计，不是最终 holdout 泛化结论。当前结果表和图应与随机种子、模型版本和数据版本一起解读。
+```text
+z_i = T_i Y_i / p - (1-T_i)Y_i/(1-p)
+```
 
-## 敏感性与稳健性
+累积 gain 按整个验证集人数归一化。报告 AUUC、Qini area、Top 10/20/30 policy gain；`topK_selected_ate` 是被选中人群内部的平均增量估计。报告的 paired bootstrap 是固定模型分数条件下的 95% 分位数区间，不包含重新训练或模型选择。
 
-旧版实验比较了类别加权与未加权结果模型，也比较了处理组抽样比例；这些结果用于发现概率校准和样本量变化的影响，不作为 learner 结构的单独因果结论。类别加权会改变隐含类别先验，可能使 `predict_proba` 失去概率校准。处理组比例实验同时改变了处理比例和训练样本量，不能解释为纯 treatment ratio 效应。
+## 5. 结果
 
-## 限制与下一步
+统一 HGB、未加权主实验 5 个 seed 的 Qini area：Random draw `0.000005±0.000047`，T-learner `0.000412±0.000037`，S-learner `0.000518±0.000087`，X-learner + cross-fitting `0.000427±0.000070`。Top20 policy gain 分别为 `0.000274`、`0.001080`、`0.001205`、`0.001060`。
 
-公开实验数据与真实业务分布不同；离线 Qini/AUUC 不能直接转化为线上 ROI。Criteo treatment 分配概率在本项目中以评估集 `mean(treatment)` 作 plug-in，需在最终报告中核对官方实验设计。当前模型组合仍存在学习器差异，主结果的统一 HGB 版本需要进一步补充固定训练总量的 treatment fraction 实验。下一步应保留未参与模型选择的最终 holdout，完成统一学习器下的比例稳健性、更多 bootstrap 重复和最终一次性评估。
+在当前开发集上，S-learner 平均 Qini area 和 Top20 policy gain 最高；X-learner 的 cross-fitting 版本具有正向平均排序信号，但不是该统一学习器设定下的平均最优方法。seed2027 上条件 bootstrap 的 Qini 95% 区间为：T-learner `[0.000131, 0.000606]`，S-learner `[0.000244, 0.000669]`，X-learner `[0.000330, 0.000706]`。这些区间只表达固定验证集与固定模型分数下的估计不确定性。
+
+固定 120,000 训练量的 X-learner Qini area 均值在 treated fraction 0.85、0.50、0.33、0.20 下分别为 `0.000259`、`0.000342`、`0.000312`、`0.000159`。当前结果没有呈现简单的单调关系，不能把某一比例解释为普遍最优。
+
+## 6. 敏感性与限制
+
+早期版本使用 `class_weight='balanced'`，会改变稀疏转化的隐含类别先验，导致 `predict_proba` 的概率校准发生变化；该版本仅作为敏感性参考，不能与未加权结果混合作 learner 结构结论。统一 HGB 主实验用于降低“模型结构”和“基础学习器”混杂，但仍未覆盖所有超参数与模型族。
+
+当前开发集 validation 已用于模型探索，不能再冒充最终 holdout。Criteo 公开数据与真实业务人群、成本和收益分布不同；没有线上成本、收入和 A/B 实验时，离线 policy gain 不能写成 ROI 或线上收入提升。处理概率目前使用验证集 treatment 频率 plug-in，正式复现应核对官方设计概率。完整原始数据没有上传仓库。
+
+## 7. 后续工作
+
+保留未参与模型选择的最终 holdout，完成一次终局评估；统一记录数据版本和处理分配概率；补充同一基础学习器下的更多模型、bootstrap 方案和数据规模实验；在研究代码之外补一份结果表和图的自动化生成脚本。完成后可在简历中写为：
+
+> 基于 Criteo 随机实验数据构建用户增量响应建模流程，统一比较 T/S/X-learner，并通过 IPW Qini、AUUC、Top-K policy gain 和固定训练量 treatment fraction 实验分析模型排序效果与稳健性。

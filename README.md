@@ -1,125 +1,88 @@
-# 用户增量响应建模：从随机实验到触达策略评估
+# Uplift Modeling Research
 
-这是一个可复现的小型研究项目，研究问题是：**在只有实验前用户特征的情况下，如何识别“被触达后更可能转化”的增量人群？不同 uplift 建模方法在处理组比例变化时是否稳定？**
-
-> 当前仓库提供合成数据 smoke test 和完整研究框架。合成数据仅用于验证代码流程；接入 Criteo 公共数据后，才可填写正式实验结果。
+一个使用 Criteo 随机实验数据研究用户增量响应建模的可复现实验项目。
 
 ## 项目背景
 
-互联网公司会通过广告、Push、短信、优惠券或站内推荐触达用户，希望用户完成访问、注册、购买等目标行为。传统转化预测模型回答的是“哪些用户最可能转化”，但增长策略真正关心的是“哪些用户是因为被触达后才增加了转化”。
+互联网公司会通过广告、Push、优惠券或站内推荐触达用户，希望用户完成访问、注册或购买。传统转化模型回答“哪些用户最可能转化”，增长策略更关心“哪些用户是因为被触达后才增加转化”。本来就会购买的用户不一定值得消耗触达成本；真正有价值的是接受处理后才增加响应的人群。
 
-例如，用户 A 本来就很活跃，即使不触达也会购买；用户 B 平时不活跃，但收到触达后才购买；用户 C 受到触达后反而被打扰；用户 D 无论是否触达都不会购买。只预测转化概率容易优先选择用户 A，而真正值得投入触达成本的可能是用户 B。
+本项目研究如何利用随机 treatment/control 实验数据识别增量响应人群，并在有限触达预算下对用户进行排序。对用户特征 `X`、处理分组 `T` 和转化结果 `Y`，目标是估计个体处理效应：
 
-因此，本项目研究如何利用随机实验数据识别具有正向增量响应的用户，并在预算有限的情况下选择更值得触达的人群。Criteo 数据将用户随机分为 treatment 组和 control 组，同时记录处理前特征与处理后的转化结果，为估计触达带来的增量效果提供实验基础。
+```text
+τ(x) = P(Y=1 | T=1, X=x) - P(Y=1 | T=0, X=x)
+```
 
-项目估计的核心对象是个体处理效应：
+Criteo 数据包含处理前匿名特征和实验后的转化结果。项目只使用 `f0`–`f11` 作为特征，`treatment` 作为处理变量，`conversion` 作为结果变量；`visit`、`exposure` 不进入模型，避免把处理后的信息带入预测。
 
-\[\tau(x)=P(Y=1\mid T=1,X=x)-P(Y=1\mid T=0,X=x)\]
+## 数据
 
-其中，`X` 是处理前用户特征，`T` 是是否接受触达，`Y` 是是否转化，`\tau(x)` 表示该用户接受触达后带来的增量转化概率。项目重点回答三个问题：能否识别更值得触达的用户；不同 uplift 模型的效果有何差异；当处理组比例和训练样本量变化时，模型是否稳定。
+真实数据文件约 3.25 GB，不能上传 GitHub。下载后放在本地 `data/` 目录，运行：
 
-本项目同时涉及机器学习、因果推断和用户增长策略：使用 T-learner、S-learner、X-learner 或 uplift tree 预测增量响应，通过 Qini、AUUC 和 Top-K uplift 评估人群排序，并模拟预算约束下的触达策略。公开数据上的离线结果不能直接解释为线上 ROI；没有真实成本、收入和线上 A/B 实验时，结果只表示增量转化率或离线策略价值。
+```bash
+python3 src/inspect_criteo.py data/criteo-research-uplift-v2.1.csv
+python3 src/sample_data.py data/criteo-research-uplift-v2.1.csv --out data/criteo-dev-1m.csv --n 1000000 --seed 2027
+python3 src/baseline_stats.py data/criteo-dev-1m.csv
+```
+
+当前数据检查：全量 13,979,592 行；`treatment` 比例约 0.85；`conversion` 比例约 0.0029；字段无缺失。完整字段说明见 [`data/README.md`](data/README.md)。
 
 ## 研究设计
 
-- 任务：估计个体处理效应（ITE），按预测 uplift 排序；
-- 基线：T-learner（处理组／对照组分别训练逻辑回归）；
-- 评估：独立测试集上的 IPW uplift 曲线、AUUC、Qini area、Top 10/20/30% policy gain（以整个测试集为分母的累计增量价值）；
-- 稳健性：只改变训练集处理组比例，测试集保持不变；0.5 和 0.25 表示处理组相对对照组的抽样比例；
-- 防泄漏：只使用处理前特征，不使用 exposure、visit、conversion 等处理后变量；按用户一次性切分训练／测试。
+v2 主实验固定 `split_seed=2027`，将 100 万行开发集划分为 75% train pool 和 25% validation，并使用 5 个模型随机种子（2027–2031）。所有模型使用相同的未加权 `HistGradientBoostingClassifier` 结果模型；X-learner 的两组效应模型使用 `HistGradientBoostingRegressor`，其 nuisance outcome 预测使用 3-fold training-only cross-fitting。
 
-AUUC/Qini 的计算采用测试集原始处理概率的 plug-in 估计 `p = mean(T)`。因此结果表示离线增量转化率排序效果，不能直接解释为线上 ROI。
+比较方法：
 
-## 运行
+- Random draw：随机排序，仅作有噪声的随机排序参考；理论随机期望在 `evaluation_v2.py` 中单独计算；
+- T-learner：处理组和对照组分别训练结果模型；
+- S-learner：将 `treatment` 作为结果模型特征；
+- X-learner：用对侧结果模型构造伪处理效应，再训练两组效应模型。
 
-```bash
-cd uplift-response-research
-python3 src/run_experiment.py --out results/metrics.json
-```
+评估按预测 uplift 排序，使用验证集 treatment 比例的 plug-in IPW 估计，报告 AUUC、Qini area 和 Top-K policy gain。`policy_gain` 的分母是整个评估集；被选中人群内部的平均增量另报告为 `topK_selected_ate`。这些是离线增量转化估计，不能直接写成线上 ROI。
 
-脚本只依赖 Python、NumPy 和 Pandas。完成 Criteo 数据接入后，将 `make_data` 替换为数据读取函数，并在报告中记录数据版本、样本量、特征定义和处理概率。
-
-## 研究报告应包含
-
-1. 数据与实验设计：随机分组、变量口径、处理前特征；
-2. 方法：T/S/X-learner 或 uplift tree 的建模假设；
-3. 指标：AUUC、Qini area、Top-K uplift 和置信区间；
-4. 结果：主结果、处理组比例稳健性、不同 seed 重复实验；
-5. 策略模拟：预算／触达成本假设、Top-K 策略、敏感性分析；
-6. 限制：公开数据与线上业务分布不同，离线 uplift 不能替代线上 A/B 实验。
-
-## 放进简历（完成实验后）
-
-> 基于公开随机实验数据构建用户增量响应建模流程，使用处理前行为特征对比 T-learner、X-learner 与 uplift tree，并通过 Qini/AUUC 评估人群排序效果；固定独立测试集，改变训练集处理组比例开展有限样本稳健性实验，进一步完成预算约束下 Top-K 触达策略模拟。
-
-## 当前阶段结果（开发集）
-
-在固定的 100 万行开发集上，使用 5 个随机种子比较随机排序、T-learner 和 S-learner。测试集处理组比例约为 0.8504，结果为离线估计，不代表线上 ROI。
-
-| 方法 | AUUC 均值 | AUUC 标准差 | Qini area 均值 | Top20 policy gain 均值 |
-| --- | ---: | ---: | ---: | ---: |
-| Random baseline | 0.000524 | 0.000094 | -0.000074 | 0.000184 |
-| T-learner logistic | 0.000485 | 0.000045 | -0.000113 | 0.000272 |
-| S-learner logistic | 0.000564 | 0.000088 | -0.000033 | 0.000413 |
-| X-learner HGB | 0.001107 | 0.000140 | 0.000510 | 0.001108 |
-
-阶段性观察：S-learner 在 Top-K 人群的平均估计增量转化率较高，且 Top20 uplift 高于 T-learner；但三种方法的 Qini area 均值都接近 0，S-learner 的跨切分波动较大，当前证据不足以宣称其整体排序稳定或优于其他方法。该段属于 legacy 开发结果；主结论请以 v2 统一学习器结果、paired bootstrap 和最终 holdout 为准。
-
-## X-learner 阶段结果（开发集）
-
-X-learner 使用 T-learner 的结果模型构造伪处理效应，再分别拟合处理组与对照组的效应模型；本实现使用 `HistGradientBoostingRegressor`，并按训练集 treatment 比例进行组合。当前结果属于开发集离线估计，结果模型使用类别加权，正式报告前应补充未加权或概率校准的敏感性分析。
-
-在 5 个随机种子下，X-learner 的 Qini area 均为正，均值约为 `0.000510`，样本标准差约为 `0.000068`；Top20 policy gain 均值约为 `0.001108`（即前 20% 策略对整个测试集的每用户累计增量价值；若要表达被选中人群内部的平均增量，需要再除以 0.2），样本标准差约为 `0.000166`。该结果显示 X-learner 在当前处理组约 85% 的不平衡开发集上有较强排序信号，但当前 X-learner 使用 HGB 效应模型，而 T/S-learner 使用线性逻辑回归，结果同时反映了学习器差异，不能单独归因于 learner 结构；此外伪效应仍为同一训练集内预测，尚未使用 cross-fitting。后续需要处理组抽样稳健性、校准敏感性、同一基学习器对比和独立最终测试集验证。
-
-## Cross-fitting 结果（开发集）
-
-为减少结果模型在同一训练样本内回预测造成的伪处理效应偏差，X-learner 使用 3-fold StratifiedKFold 生成 out-of-fold 的 `mu0` 和 `mu1`，再拟合两组效应模型；cross-fitting 用于减少结果模型过拟合造成的伪效应偏差。5 个随机种子的结果如下：
-
-| 方法 | AUUC 均值 | Qini area 均值 | Top20 policy gain 均值 |
-| --- | ---: | ---: | ---: |
-| Random baseline | 0.000524 | -0.000074 | 0.000184 |
-| T-learner logistic | 0.000485 | -0.000113 | 0.000272 |
-| S-learner logistic | 0.000564 | -0.000033 | 0.000413 |
-| X-learner HGB + cross-fitting | 0.001112 | 0.000515 | 0.001111 |
-
-X-learner 的 Qini area 在 5 次切分中保持为正，说明在当前开发集和实现下具有较强的离线排序信号。但 X-learner 使用 HGB 效应模型，T/S-learner 使用逻辑回归，且结果模型仍使用类别加权；因此该结果不能单独解释为 X-learner 结构带来的优势。后续需要统一基础学习器、比较类别加权与概率校准，并在固定独立测试集上完成处理组比例稳健性实验。
-
-## 处理组比例稳健性（开发集）
-
-固定同一份 25% 测试集，只对训练集中的 treated 样本进行抽样；`ratio` 表示训练集 treated/control 的保留比例。由于抽样同时改变了处理比例和训练样本量，该实验检验的是有限样本条件下的组合稳健性，不是纯粹的单变量因果比较。
-
-| 训练 treated/control 保留比例 | X-learner Qini area 均值 | 标准差 |
-| --- | ---: | ---: |
-| 原始比例（约 85% treated） | 0.000515 | 0.000073 |
-| 1:1 | 0.000095 | 0.000072 |
-| 1:2 | -0.000490 | 0.000066 |
-| 1:4 | -0.000496 | 0.000071 |
-
-阶段性观察：在当前 100 万行开发集上，降低 treated 样本比例后，X-learner 的排序信号明显减弱；1:2 和 1:4 条件下 Qini area 均为负。该结果提示对照组样本较少、处理效应伪标签噪声和训练样本量变化可能共同影响模型表现。后续需要固定总训练样本量、分别改变 treatment 比例，并补充未加权／概率校准结果，才能进一步区分这些因素。
-
-## v2 统一模型与验证结果
-
-为避免不同基础学习器与类别加权混在一起，v2 主实验统一使用未加权 `HistGradientBoostingClassifier` 结果模型；T/S/X 的效应模型使用 `HistGradientBoostingRegressor`，X-learner 使用 3-fold training-only cross-fitting。固定 `split_seed=2027` 的 75% train pool 和 25% validation，重复 5 个模型 seed。
+## v2 主结果
 
 | 方法 | Qini area 均值 ± 标准差 | Top20 policy gain 均值 ± 标准差 |
 | --- | ---: | ---: |
-| Random expectation | 0.000005 ± 0.000047 | 0.000274 ± 0.000115 |
+| Random draw | 0.000005 ± 0.000047 | 0.000274 ± 0.000115 |
 | T-learner HGB | 0.000412 ± 0.000037 | 0.001080 ± 0.000048 |
 | S-learner HGB | 0.000518 ± 0.000087 | 0.001205 ± 0.000118 |
 | X-learner HGB + cross-fitting | 0.000427 ± 0.000070 | 0.001060 ± 0.000066 |
 
-v2 结果显示，在统一未加权 HGB 设定下，S-learner 的平均 Qini area 和 Top20 policy gain 高于 T/X-learner；这与旧版类别加权、不同基础学习器组合的结果不同。这里的结论只适用于当前开发集验证，不能外推为普遍模型优劣。
+在当前固定开发集上，S-learner 的平均 Qini area 和 Top20 policy gain 最高；X-learner 不是本统一 HGB 设定下的平均最优方法。该结论只适用于当前开发集验证，不能替代未参与模型选择的最终 holdout。
 
-## 图表与报告
+## 固定训练量稳健性
+
+固定训练样本量为 120,000，只改变 treated fraction，测试集仍为同一份 validation；每个设定使用 5 个 seed。X-learner Qini area 均值如下：
+
+| Treated fraction | Qini area 均值 | 标准差 |
+| ---: | ---: | ---: |
+| 0.85 | 0.000259 | 0.000198 |
+| 0.50 | 0.000342 | 0.000045 |
+| 0.33 | 0.000312 | 0.000068 |
+| 0.20 | 0.000159 | 0.000111 |
+
+该实验只说明当前固定样本量与训练构成设定下的离线变化，不是线上 treatment policy 的因果效应。
+
+## 结果、报告与测试
 
 - [研究报告](reports/research_report.md)
-- [模型 Qini 对比图](reports/figures/qini_model_comparison.png)
-- [类别加权敏感性图](reports/figures/class_weight_sensitivity.png)
-- [处理组比例稳健性图](reports/figures/treatment_ratio_robustness.png)
-- [严格指标与 paired bootstrap 实现](src/evaluation_v2.py)
-
-运行测试：
+- [v2 汇总结果](results/v2_summary.json)
+- [严格 tie-safe 指标与 paired bootstrap](src/evaluation_v2.py)
+- [v2 Qini 曲线](reports/figures/v2_qini_curves_seed2027.png)
+- [处理组构成稳健性图](reports/figures/v2_fixed_size_treatment_robustness.png)
+- [类别加权敏感性图（legacy）](reports/figures/class_weight_sensitivity.png)
 
 ```bash
 python3 -m unittest discover -s tests -v
+MPLBACKEND=Agg python3 src/plot_v2.py
 ```
+
+Bootstrap 区间是固定已训练模型分数、按 treatment 分层重抽样的条件区间；它不包含重新训练和模型选择不确定性。`data/` 下原始 CSV 和开发集均已忽略，不会提交到仓库。
+
+## 后续工作
+
+1. 预留未参与调参的最终 holdout，只做一次终局评估；
+2. 在统一学习器下补充更多数据规模和 treatment fraction 实验；
+3. 检查官方 treatment assignment probability，并以设计概率替代 plug-in；
+4. 记录模型校准、置信区间和完整数据版本；
+5. 完成后再把真实结果写入简历，表述为“基于公开随机实验数据的个人研究项目”。
