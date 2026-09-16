@@ -63,7 +63,7 @@ python3 src/run_experiment.py --out results/metrics.json
 | S-learner logistic | 0.000564 | 0.000088 | -0.000033 | 0.000413 |
 | X-learner HGB | 0.001107 | 0.000140 | 0.000510 | 0.001108 |
 
-阶段性观察：S-learner 在 Top-K 人群的平均估计增量转化率较高，且 Top20 uplift 高于 T-learner；但三种方法的 Qini area 均值都接近 0，S-learner 的跨切分波动较大，当前证据不足以宣称其整体排序稳定或优于其他方法。后续需要补充处理组比例稳健性、重复抽样置信区间和 uplift 曲线，并在完整研究报告中讨论稀疏转化、结果模型概率校准与 treatment 分配概率带来的估计不确定性。
+阶段性观察：S-learner 在 Top-K 人群的平均估计增量转化率较高，且 Top20 uplift 高于 T-learner；但三种方法的 Qini area 均值都接近 0，S-learner 的跨切分波动较大，当前证据不足以宣称其整体排序稳定或优于其他方法。该段属于 legacy 开发结果；主结论请以 v2 统一学习器结果、paired bootstrap 和最终 holdout 为准。
 
 ## X-learner 阶段结果（开发集）
 
@@ -73,7 +73,7 @@ X-learner 使用 T-learner 的结果模型构造伪处理效应，再分别拟�
 
 ## Cross-fitting 结果（开发集）
 
-为减少结果模型在同一训练样本内回预测造成的伪处理效应偏差，X-learner 使用 3-fold StratifiedKFold 生成 out-of-fold 的 `mu0` 和 `mu1`，再拟合两组效应模型。5 个随机种子的结果如下：
+为减少结果模型在同一训练样本内回预测造成的伪处理效应偏差，X-learner 使用 3-fold StratifiedKFold 生成 out-of-fold 的 `mu0` 和 `mu1`，再拟合两组效应模型；cross-fitting 用于减少结果模型过拟合造成的伪效应偏差。5 个随机种子的结果如下：
 
 | 方法 | AUUC 均值 | Qini area 均值 | Top20 policy gain 均值 |
 | --- | ---: | ---: | ---: |
@@ -96,3 +96,30 @@ X-learner 的 Qini area 在 5 次切分中保持为正，说明在当前开发�
 | 1:4 | -0.000496 | 0.000071 |
 
 阶段性观察：在当前 100 万行开发集上，降低 treated 样本比例后，X-learner 的排序信号明显减弱；1:2 和 1:4 条件下 Qini area 均为负。该结果提示对照组样本较少、处理效应伪标签噪声和训练样本量变化可能共同影响模型表现。后续需要固定总训练样本量、分别改变 treatment 比例，并补充未加权／概率校准结果，才能进一步区分这些因素。
+
+## v2 统一模型与验证结果
+
+为避免不同基础学习器与类别加权混在一起，v2 主实验统一使用未加权 `HistGradientBoostingClassifier` 结果模型；T/S/X 的效应模型使用 `HistGradientBoostingRegressor`，X-learner 使用 3-fold training-only cross-fitting。固定 `split_seed=2027` 的 75% train pool 和 25% validation，重复 5 个模型 seed。
+
+| 方法 | Qini area 均值 ± 标准差 | Top20 policy gain 均值 ± 标准差 |
+| --- | ---: | ---: |
+| Random expectation | 0.000005 ± 0.000047 | 0.000274 ± 0.000115 |
+| T-learner HGB | 0.000412 ± 0.000037 | 0.001080 ± 0.000048 |
+| S-learner HGB | 0.000518 ± 0.000087 | 0.001205 ± 0.000118 |
+| X-learner HGB + cross-fitting | 0.000427 ± 0.000070 | 0.001060 ± 0.000066 |
+
+v2 结果显示，在统一未加权 HGB 设定下，S-learner 的平均 Qini area 和 Top20 policy gain 高于 T/X-learner；这与旧版类别加权、不同基础学习器组合的结果不同。这里的结论只适用于当前开发集验证，不能外推为普遍模型优劣。
+
+## 图表与报告
+
+- [研究报告](reports/research_report.md)
+- [模型 Qini 对比图](reports/figures/qini_model_comparison.png)
+- [类别加权敏感性图](reports/figures/class_weight_sensitivity.png)
+- [处理组比例稳健性图](reports/figures/treatment_ratio_robustness.png)
+- [严格指标与 paired bootstrap 实现](src/evaluation_v2.py)
+
+运行测试：
+
+```bash
+python3 -m unittest discover -s tests -v
+```
