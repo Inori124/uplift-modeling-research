@@ -414,3 +414,37 @@ return percentile intervals and paired model differences
 > 基于 Criteo 随机实验数据构建用户增量响应建模流程，统一比较 T/S/X-learner，使用 IPW Qini、AUUC、Top-K policy gain、cross-fitting 和固定训练量 treatment 构成实验分析模型排序效果与稳健性。
 
 不应写成“线上 ROI 提升”“带来收入增长”或“模型在所有 treatment 比例下稳定”。
+
+## 附录 D：审稿式自检与主张—证据对应
+
+### D.1 五维自检
+
+| 维度 | 审稿问题 | 当前状态 | 处理方式 |
+| --- | --- | --- | --- |
+| Contribution | 项目贡献是新模型还是新的实证发现？ | needs revision | 本文将贡献定位为统一 learner、严格 IPW 评估和训练构成敏感性的可复现实证流程，不声称提出新算法。 |
+| Writing clarity | 读者能否区分 `G(q)`、Qini 和 Top-K selected ATE？ | pass | 在第 5 节和图 6–7 图注中分别定义原始 policy gain 与 centered Qini。 |
+| Experimental strength | 模型间差异是否稳定？ | pass with limitation | holdout 点估计显示 S > X > T，但 pairwise CI 跨 0，正文不宣称确定性优劣。 |
+| Evaluation completeness | 是否有随机参考、重复 seed、构成敏感性和 holdout？ | pass | 提供理论随机期望、一次随机排列、5 个模型 seed、固定 120k 构成实验和 300k holdout。 |
+| Method soundness | assignment effect 是否被误写成 exposure effect？ | pass | 明确 `treatment` 是 assignment，`exposure` 不进入模型，结论限定为 ITT/CATE of assignment。 |
+
+### D.2 主张—证据映射
+
+- **Claim：** 三种 learner 在当前公开随机实验上产生正向离线排序信号。
+  **Evidence：** Final holdout 的 T/S/X Qini area 点估计分别为 `0.000285/0.000419/0.000375`，相对理论随机基线 0 的条件区间均位于 0 以上。
+  **Status：** supported for this frozen holdout and evaluation protocol.
+
+- **Claim：** S-learner 在统一 HGB 配置下的点估计最高。
+  **Evidence：** Development mean Qini `0.000518`，final holdout Qini `0.000419`，均高于 T/X 点估计。
+  **Status：** supported as a point-estimate observation; pairwise uncertainty prevents a deterministic ranking claim.
+
+- **Claim：** X-learner 的 cross-fitting 具有方法学价值。
+  **Evidence：** OOF `mu0/mu1` 预测、固定 training-only folds、独立 validation/holdout 评分；本文没有把 cross-fitting 的贡献单独做因果消融。
+  **Status：** supported as an implementation safeguard, needs a dedicated ablation for an effect-size claim.
+
+- **Claim：** treatment composition affects learner performance.
+  **Evidence：** Fixed-120k experiments show different Qini trajectories across fractions 0.85/0.50/0.33/0.20.
+  **Status：** supported as a joint composition/sample/mixing-weight sensitivity, not as a pure propensity effect.
+
+- **Claim：** The project estimates online ROI or revenue impact.
+  **Evidence：** No online cost, revenue, or post-deployment randomized policy experiment is available.
+  **Status：** unsupported and explicitly excluded from the paper's claims.
