@@ -82,6 +82,10 @@ PYTHONPATH=src python3 src/run_study_v2.py --suite all --workers 2 --bootstrap 2
 - [论文开发集 Qini 曲线](reports/figures/paper_qini_validation.png)
 - [论文 holdout Qini 曲线](reports/figures/paper_qini_holdout.png)
 - [论文 holdout 区间图](reports/figures/paper_holdout_qini_ci.png)
+- [论文 holdout 配对差异图](reports/figures/paper_holdout_pairwise.png)
+- [论文 holdout policy gain 图](reports/figures/paper_policy_gain_holdout.png)
+- [论文研究流程图](reports/figures/paper_study_design.png)
+- [论文验证汇总图](reports/figures/paper_validation_summary.png)
 - [论文 treatment fraction 图](reports/figures/paper_treatment_fraction.png)
 - [类别加权敏感性图（legacy）](reports/figures/class_weight_sensitivity.png)
 
